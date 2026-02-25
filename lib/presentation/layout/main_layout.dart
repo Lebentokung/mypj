@@ -29,19 +29,19 @@ class _MainLayoutState extends State<MainLayout> {
 
   List<BottomNavigationBarItem> _buildNavBarItems() {
     return [
-      _svgNavBarItem('assets/svgs/cart-shopping.svg', 'Profile'),
-      _svgNavBarItem('assets/svgs/cart-shopping.svg', 'Scan'),
-      _svgNavBarItem('assets/svgs/briefcase.svg', 'Map'),
+      _iconNavBarItem(Icons.person, 'Profile'),
+      _iconNavBarItem(Icons.qr_code_scanner, 'Scan'),
+      _iconNavBarItem(Icons.map, 'Map'),
     ];
   }
 
-  BottomNavigationBarItem _svgNavBarItem(String asset, String label) {
+  BottomNavigationBarItem _iconNavBarItem(IconData icon, String label) {
     return BottomNavigationBarItem(
       icon: NavIcon(
-        icon: SvgIcon(asset: asset, color: AppColors.textPrimary),
+        icon: Icon(icon, color: AppColors.textPrimary),
       ),
       activeIcon: NavActiveIcon(
-        icon: SvgIcon(asset: asset, color: AppColors.textPrimary),
+        icon: Icon(icon, color: AppColors.textPrimary),
       ),
       label: label,
     );
