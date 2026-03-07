@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_2/presentation/screen/notification/bounding_box_painter.dart';
 
 class NotificationMainScreen extends StatefulWidget {
   const NotificationMainScreen({Key? key}) : super(key: key);
@@ -20,6 +21,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
   String? _capturedImagePath;
   Map<String, dynamic>? _scanResult;
   bool _isAnalyzing = false;
+  Size? _imageSize;
 
   @override
   void initState() {
@@ -112,7 +114,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
       final base64Image = base64Encode(bytes);
 
       final response = await http.post(
-        Uri.parse('https://detect.roboflow.com/banana-tree-dataset-mhljp/1?api_key=RZlC73r4OoOkXmqyiHcY'),
+        Uri.parse('https://serverless.roboflow.com/mango-tree-arhmx-khhiw/6?api_key=RZlC73r4OoOkXmqyiHcY'),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -121,6 +123,15 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
 
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
+        
+        // Get image dimensions from result
+        if (result['image'] != null) {
+          final imageInfo = result['image'];
+          _imageSize = Size(
+            (imageInfo['width'] as num).toDouble(),
+            (imageInfo['height'] as num).toDouble(),
+          );
+        }
         
         if (mounted) {
           setState(() {
@@ -186,6 +197,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
     setState(() {
       _capturedImagePath = null;
       _scanResult = null;
+      _imageSize = null;
     });
   }
 
@@ -315,27 +327,46 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                 );
               }
               
-              return Image.file(
-                File(_capturedImagePath!),
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'ไม่สามารถโหลดภาพได้',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.file(
+                        File(_capturedImagePath!),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'ไม่สามารถโหลดภาพได้',
+                                  style: TextStyle(fontSize: 18, color: Colors.white),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: _resetImage,
+                                  child: const Text('กลับไปถ่ายใหม่'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      // Draw bounding boxes if scan result exists
+                      if (_scanResult != null && _imageSize != null)
+                        CustomPaint(
+                          size: constraints.biggest,
+                          painter: BoundingBoxPainter(
+                            predictions: _scanResult!['predictions'] as List?,
+                            imageSize: _imageSize!,
+                            containerSize: constraints.biggest,
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _resetImage,
-                          child: const Text('กลับไปถ่ายใหม่'),
-                        ),
-                      ],
-                    ),
+                    ],
                   );
                 },
               );
