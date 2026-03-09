@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "81422712746",
+    "project_id": "plant-scan-app",
+    "storage_bucket": "plant-scan-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:81422712746:android:7ef302ef8308efcb2735d3",
+        "android_client_info": {
+          "package_name": "com.example.plantapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSwRVF3aLZ1L4Bf7BfPTEZG-EI1Cvz4t8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

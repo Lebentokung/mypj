@@ -6,7 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_application_2/presentation/screen/notification/notification_main_screen.dart';
 
 class MainLayout extends StatefulWidget {
-  const MainLayout({super.key});
+  const MainLayout({super.key, required this.username});
+
+  final String username;
 
   @override
   _MainLayoutState createState() => _MainLayoutState();
@@ -21,11 +23,17 @@ class _MainLayoutState extends State<MainLayout> {
   // static const int notificationTab = 3;
   // static const int themeTab = 4;
 
-  final List<Widget> _screens = const [
-    ProfileScreen(),
-    NotificationMainScreen(),
-    MapScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      ProfileScreen(username: widget.username),
+      const NotificationMainScreen(),
+      const MapScreen(),
+    ];
+  }
 
   List<BottomNavigationBarItem> _buildNavBarItems() {
     return [
