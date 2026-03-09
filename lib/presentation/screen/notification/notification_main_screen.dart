@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_2/core/theme/app_colors.dart';
 import 'package:flutter_application_2/presentation/screen/notification/bounding_box_painter.dart';
 
 class NotificationMainScreen extends StatefulWidget {
@@ -206,8 +207,8 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('สแกน'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.success,
+        foregroundColor: AppColors.secondary,
       ),
       body: !_isInitialized
           ? const Center(
@@ -254,10 +255,10 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                     FloatingActionButton(
                       heroTag: 'gallery',
                       onPressed: _isScanning ? null : _pickImageFromGallery,
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.secondary,
                       child: const Icon(
                         Icons.photo_library,
-                        color: Colors.blue,
+                        color: AppColors.success,
                       ),
                     ),
                     
@@ -265,7 +266,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                     FloatingActionButton.extended(
                       heroTag: 'scan',
                       onPressed: _isScanning ? null : _takePicture,
-                      backgroundColor: Colors.blue,
+                      backgroundColor: AppColors.success,
                       icon: _isScanning
                           ? const SizedBox(
                               width: 20,
@@ -404,8 +405,8 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isAnalyzing ? null : _scanWithRoboflow,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.success,
+                          foregroundColor: AppColors.secondary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -454,7 +455,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                           'พบ ${(_scanResult!['predictions'] as List?)?.length ?? 0} รายการ',
                           style: const TextStyle(
                             fontSize: 16,
-                            color: Colors.green,
+                            color: AppColors.success,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -482,14 +483,14 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                     FloatingActionButton.extended(
                       heroTag: 'retake',
                       onPressed: _isAnalyzing ? null : _resetImage,
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.secondary,
                       icon: const Icon(
                         Icons.camera_alt,
-                        color: Colors.blue,
+                        color: AppColors.success,
                       ),
                       label: const Text(
                         'ถ่ายใหม่',
-                        style: TextStyle(color: Colors.blue, fontSize: 16),
+                        style: TextStyle(color: AppColors.success, fontSize: 16),
                       ),
                     ),
                     
@@ -497,7 +498,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                     FloatingActionButton.extended(
                       heroTag: 'gallery2',
                       onPressed: _isAnalyzing ? null : _pickImageFromGallery,
-                      backgroundColor: Colors.blue,
+                      backgroundColor: AppColors.success,
                       icon: const Icon(Icons.photo_library),
                       label: const Text(
                         'เลือกใหม่',

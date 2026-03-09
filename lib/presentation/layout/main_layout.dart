@@ -67,7 +67,7 @@ class _MainLayoutState extends State<MainLayout> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceVariant,
         selectedItemColor: AppColors.textPrimary,
         unselectedItemColor: AppColors.textPrimary,
         selectedIconTheme: const IconThemeData(size: 22),

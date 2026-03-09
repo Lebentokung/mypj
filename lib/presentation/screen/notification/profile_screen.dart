@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_2/core/services/profile_service.dart';
 import 'package:flutter_application_2/core/theme/app_colors.dart';
 import 'package:flutter_application_2/presentation/screen/auth/login_screen.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,7 +18,35 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
+  final ProfileService _profileService = ProfileService();
   File? _profileImage;
+  String? _profileImageUrl;
+  late String _displayName;
+  bool _isUploadingImage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayName = widget.username;
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    try {
+      final profileData = await _profileService.getProfileData();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profileImageUrl = profileData['profileImageUrl'];
+        _displayName = profileData['displayName']?.trim().isNotEmpty == true
+            ? profileData['displayName']!
+            : widget.username;
+      });
+    } catch (_) {
+      // Keep UI usable even when profile image lookup fails.
+    }
+  }
 
   String get _emailDisplay {
     if (widget.username.contains('@')) {
@@ -38,7 +68,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _profileImage = File(selected.path);
+      _isUploadingImage = true;
     });
+
+    try {
+      final imageUrl = await _profileService.uploadProfileImage(_profileImage!);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profileImageUrl = imageUrl;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์สำเร็จ')),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openEditProfileDialog() async {
+    final controller = TextEditingController(text: _displayName);
+    final updatedName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('แก้ไขโปรไฟล์'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'ชื่อที่แสดง',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('บันทึก'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || updatedName == null || updatedName.isEmpty) {
+      return;
+    }
+
+    try {
+      await _profileService.updateDisplayName(updatedName);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _displayName = updatedName;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('แก้ไขโปรไฟล์สำเร็จ')),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'แก้ไขโปรไฟล์ไม่สำเร็จ')),
+      );
+    }
   }
 
 
@@ -56,12 +163,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             children: [
               _ProfileHeaderCard(
-                username: widget.username,
+                username: _displayName,
                 email: _emailDisplay,
                 profileImage: _profileImage,
+                profileImageUrl: _profileImageUrl,
+                isUploadingImage: _isUploadingImage,
                 onTapProfileImage: _pickProfileImage,
               ),
               const SizedBox(height: 20),
+              _ProfileMenuCard(
+                icon: Icons.edit,
+                title: 'แก้ไขโปรไฟล์',
+                onTap: _openEditProfileDialog,
+              ),
+              const SizedBox(height: 10),
               _ProfileMenuCard(
                 icon: Icons.history,
                 title: 'ประวัติการวางหมุด',
@@ -69,16 +184,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 10),
               _ProfileMenuCard(
-                icon: Icons.settings,
-                title: 'ตั้งค่า',
-                onTap: () {},
-              ),
-              const SizedBox(height: 10),
-              _ProfileMenuCard(
                 icon: Icons.logout,
                 title: 'ออกจากระบบ',
-                onTap: () {
-                  Navigator.of(context).pushAndRemoveUntil(
+                onTap: () async {
+                  final navigator = Navigator.of(context);
+                  await FirebaseAuth.instance.signOut();
+                  if (!mounted) {
+                    return;
+                  }
+                  navigator.pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (context) => const LoginScreen(),
                     ),
@@ -99,12 +213,16 @@ class _ProfileHeaderCard extends StatelessWidget {
     required this.username,
     required this.email,
     required this.profileImage,
+    required this.profileImageUrl,
+    required this.isUploadingImage,
     required this.onTapProfileImage,
   });
 
   final String username;
   final String email;
   final File? profileImage;
+  final String? profileImageUrl;
+  final bool isUploadingImage;
   final VoidCallback onTapProfileImage;
 
   @override
@@ -117,7 +235,7 @@ class _ProfileHeaderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withOpacity(0.2),
+            color: AppColors.textPrimary.withValues(alpha: 0.2),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -136,13 +254,29 @@ class _ProfileHeaderCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: ClipOval(
-                child: profileImage != null
-                    ? Image.file(profileImage!, fit: BoxFit.cover)
-                    : const Icon(
-                        Icons.person,
-                        color: AppColors.textHint,
-                        size: 42,
-                      ),
+                child: isUploadingImage
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : profileImage != null
+                        ? Image.file(profileImage!, fit: BoxFit.cover)
+                        : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                            ? Image.network(
+                                profileImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) {
+                                  return const Icon(
+                                    Icons.person,
+                                    color: AppColors.textHint,
+                                    size: 42,
+                                  );
+                                },
+                              )
+                            : const Icon(
+                                Icons.person,
+                                color: AppColors.textHint,
+                                size: 42,
+                              ),
               ),
             ),
           ),
