@@ -58,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
         String message;
         if (e.code == 'user-not-found') {
           message = 'ไม่มีผู้ใช้ในระบบ';
-        } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        } else if (e.code == 'wrong-password' ||
+            e.code == 'invalid-credential') {
           message = 'รหัสผ่านไม่ถูกต้อง';
         } else if (e.code == 'permission-denied') {
           message = 'ยังไม่มีสิทธิ์เข้าถึง Firestore (ต้องแก้ Firestore Rules)';
@@ -71,9 +72,9 @@ class _LoginScreenState extends State<LoginScreen> {
           message = e.message ?? 'เข้าสู่ระบบไม่สำเร็จ';
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       } finally {
         if (mounted) {
           setState(() {
@@ -86,8 +87,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _openRegisterScreen() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (context) => const RegisterScreen(),
+      MaterialPageRoute(builder: (context) => const RegisterScreen()),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
       ),
     );
   }
@@ -96,7 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Login'),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Center(
@@ -104,70 +126,116 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _identifierController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username หรือ Email',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'กรุณากรอก Username หรือ Email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'กรุณากรอก Password';
-                        }
-                        if (value.length < 6) {
-                          return 'Password ต้องมีอย่างน้อย 6 ตัวอักษร';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _openRegisterScreen,
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          textStyle: Theme.of(context).textTheme.labelSmall,
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          "Welcome",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        child: const Text('สมัครสมาชิค'),
-                      ),
+                        const SizedBox(height: 24),
+
+                        TextFormField(
+                          controller: _identifierController,
+                          style: const TextStyle(fontSize: 16),
+                          decoration: _inputDecoration(
+                            'Username หรือ Email',
+                            Icons.person,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'กรุณากรอก Username หรือ Email';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        TextFormField(
+                          controller: _passwordController,
+                          style: const TextStyle(fontSize: 16),
+                          obscureText: true,
+                          decoration: _inputDecoration('Password', Icons.lock),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'กรุณากรอก Password';
+                            }
+                            if (value.length < 6) {
+                              return 'Password ต้องมีอย่างน้อย 6 ตัวอักษร';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 3,
+                            ),
+                            onPressed: _isLoading ? null : _submitLogin,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Login',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 60),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "มีสมาชิกไหม? ",
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 0, 0, 0),
+                                fontSize: 16,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _openRegisterScreen,
+                              child: const Text(
+                                "สมัครสมาชิก",
+                                style: TextStyle(
+                                  color: Color.fromARGB(255, 25, 105, 170),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitLogin,
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('เข้าสู่ระบบ'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
