@@ -34,18 +34,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfileImage() async {
     try {
       final profileData = await _profileService.getProfileData();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
       setState(() {
         _profileImageUrl = profileData['profileImageUrl'];
         _displayName = profileData['displayName']?.trim().isNotEmpty == true
             ? profileData['displayName']!
             : widget.username;
       });
-    } catch (_) {
-      // Keep UI usable even when profile image lookup fails.
-    }
+    } catch (_) {}
   }
 
   String get _emailDisplay {
@@ -62,9 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       maxWidth: 1024,
     );
 
-    if (!mounted || selected == null) {
-      return;
-    }
+    if (!mounted || selected == null) return;
 
     setState(() {
       _profileImage = File(selected.path);
@@ -73,19 +68,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final imageUrl = await _profileService.uploadProfileImage(_profileImage!);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
       setState(() {
         _profileImageUrl = imageUrl;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์สำเร็จ')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์สำเร็จ')));
     } on FirebaseAuthException catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
       );
@@ -100,15 +94,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openEditProfileDialog() async {
     final controller = TextEditingController(text: _displayName);
+
     final updatedName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('แก้ไขโปรไฟล์'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'ชื่อที่แสดง',
-          ),
+          style: const TextStyle(fontSize: 16),
+          decoration: const InputDecoration(labelText: 'ชื่อที่แสดง'),
         ),
         actions: [
           TextButton(
@@ -123,43 +117,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (!mounted || updatedName == null || updatedName.isEmpty) {
-      return;
-    }
+    if (!mounted || updatedName == null || updatedName.isEmpty) return;
 
     try {
       await _profileService.updateDisplayName(updatedName);
-      if (!mounted) {
-        return;
-      }
+
+      if (!mounted) return;
+
       setState(() {
         _displayName = updatedName;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('แก้ไขโปรไฟล์สำเร็จ')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('แก้ไขโปรไฟล์สำเร็จ')));
     } on FirebaseAuthException catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'แก้ไขโปรไฟล์ไม่สำเร็จ')),
       );
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceVariant,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Profile'),
         backgroundColor: AppColors.success,
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               _ProfileHeaderCard(
@@ -170,28 +163,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 isUploadingImage: _isUploadingImage,
                 onTapProfileImage: _pickProfileImage,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _ProfileMenuCard(
                 icon: Icons.edit,
                 title: 'แก้ไขโปรไฟล์',
                 onTap: _openEditProfileDialog,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _ProfileMenuCard(
                 icon: Icons.history,
                 title: 'ประวัติการวางหมุด',
                 onTap: () {},
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _ProfileMenuCard(
                 icon: Icons.logout,
                 title: 'ออกจากระบบ',
+                isLogout: true,
                 onTap: () async {
                   final navigator = Navigator.of(context);
                   await FirebaseAuth.instance.signOut();
-                  if (!mounted) {
-                    return;
-                  }
+
+                  if (!mounted) return;
+
                   navigator.pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (context) => const LoginScreen(),
@@ -228,80 +222,68 @@ class _ProfileHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.success,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.2),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Row(
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(100),
             onTap: onTapProfileImage,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-              ),
+            child: CircleAvatar(
+              radius: 36,
+              backgroundColor: Colors.white,
               child: ClipOval(
                 child: isUploadingImage
-                    ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const CircularProgressIndicator(strokeWidth: 2)
                     : profileImage != null
-                        ? Image.file(profileImage!, fit: BoxFit.cover)
-                        : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                            ? Image.network(
-                                profileImageUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) {
-                                  return const Icon(
-                                    Icons.person,
-                                    color: AppColors.textHint,
-                                    size: 42,
-                                  );
-                                },
-                              )
-                            : const Icon(
-                                Icons.person,
-                                color: AppColors.textHint,
-                                size: 42,
-                              ),
+                    ? Image.file(
+                        profileImage!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                    ? Image.network(
+                        profileImageUrl!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : const Icon(Icons.person, size: 40),
               ),
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  username,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontSize: 26,
-                      ),
+          const SizedBox(width: 18),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                username,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  email,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.info,
-                        fontSize: 14,
-                      ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                email,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color.fromARGB(255, 255, 255, 255),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -314,37 +296,42 @@ class _ProfileMenuCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
+    this.isLogout = false,
   });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final bool isLogout;
 
   @override
   Widget build(BuildContext context) {
+    final color = isLogout ? Colors.red : AppColors.success;
+
     return Material(
-      color: AppColors.success,
-      borderRadius: BorderRadius.circular(4),
-      elevation: 3,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      elevation: 2,
       child: InkWell(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           child: Row(
             children: [
-              Icon(icon, size: 36, color: AppColors.textPrimary),
+              Icon(icon, color: color, size: 26),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   title,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontSize: 17,
-                      ),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isLogout ? Colors.red : AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
             ],
           ),
         ),
