@@ -16,12 +16,16 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  static const double _minZoom = 3;
+  static const double _maxZoom = 19;
+
   final MapController _mapController = MapController();
   final PinService _pinService = PinService();
   final ImagePicker _imagePicker = ImagePicker();
 
   List<MapPin> _pins = [];
   MapPin? _selectedPin;
+  bool _isPickingLocation = false;
   bool _isLoadingPins = true;
   bool _isSavingPin = false;
 
@@ -84,38 +88,94 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: _isLoadingPins
           ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-              mapController: _mapController,
-              options: const MapOptions(
-                initialCenter: LatLng(13.7563, 100.5018),
-                initialZoom: 14,
-                interactionOptions: InteractionOptions(
-                  flags: ~InteractiveFlag.doubleTapZoom,
-                ),
-              ),
+          : Stack(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.app',
-                  maxNativeZoom: 17,
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: const LatLng(13.7563, 100.5018),
+                    initialZoom: 14,
+                    interactionOptions: const InteractionOptions(
+                      flags: ~InteractiveFlag.doubleTapZoom,
+                    ),
+                    onLongPress: (tapPosition, point) {
+                      if (_isSavingPin || !_isPickingLocation) {
+                        return;
+                      }
+
+                      setState(() {
+                        _isPickingLocation = false;
+                      });
+
+                      _showPinDialog(location: point);
+                    },
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'flutter_application_2',
+                      maxNativeZoom: 19,
+                    ),
+                    MarkerLayer(
+                      markers: _buildMarkers(),
+                    ),
+                  ],
                 ),
-                MarkerLayer(
-                  markers: _buildMarkers(),
+                if (_isPickingLocation)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'โหมดเพิ่มหมุด: แตะค้างบนแผนที่เพื่อเลือกตำแหน่ง',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  right: 12,
+                  bottom: _selectedPin != null ? 220 : 90,
+                  child: _buildZoomControls(),
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isSavingPin ? null : _addPin,
-        backgroundColor: AppColors.success,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isSavingPin
+            ? null
+            : () {
+                setState(() {
+                  _isPickingLocation = !_isPickingLocation;
+                });
+
+                if (_isPickingLocation) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('แตะค้างบนแผนที่เพื่อเลือกตำแหน่งหมุดใหม่'),
+                    ),
+                  );
+                }
+              },
+        backgroundColor: _isPickingLocation ? AppColors.error : AppColors.success,
         foregroundColor: AppColors.secondary,
         tooltip: 'เพิ่มหมุดของฉัน',
-        child: _isSavingPin
+        icon: _isSavingPin
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.add_location),
+            : Icon(_isPickingLocation ? Icons.close : Icons.add_location),
+        label: Text(_isPickingLocation ? 'ยกเลิกเพิ่มหมุด' : 'เพิ่มหมุด'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomSheet: _selectedPin != null ? _buildPinDetails() : null,
@@ -129,6 +189,7 @@ class _MapScreenState extends State<MapScreen> {
         point: pin.location,
         child: GestureDetector(
           onTap: () {
+            _mapController.move(pin.location, _mapController.camera.zoom);
             setState(() {
               _selectedPin = pin;
             });
@@ -162,11 +223,54 @@ class _MapScreenState extends State<MapScreen> {
     }).toList();
   }
 
-  void _addPin() {
-    _showPinDialog(null);
+  Widget _buildZoomControls() {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: _zoomIn,
+              tooltip: 'ซูมเข้า',
+              icon: const Icon(Icons.add),
+            ),
+            const Divider(height: 1),
+            IconButton(
+              onPressed: _zoomOut,
+              tooltip: 'ซูมออก',
+              icon: const Icon(Icons.remove),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  void _showPinDialog(MapPin? pin) {
+  void _zoomIn() {
+    final currentZoom = _mapController.camera.zoom;
+    final nextZoom = (currentZoom + 1).clamp(_minZoom, _maxZoom).toDouble();
+    _mapController.move(_mapController.camera.center, nextZoom);
+  }
+
+  void _zoomOut() {
+    final currentZoom = _mapController.camera.zoom;
+    final nextZoom = (currentZoom - 1).clamp(_minZoom, _maxZoom).toDouble();
+    _mapController.move(_mapController.camera.center, nextZoom);
+  }
+
+  void _showPinDialog({MapPin? pin, LatLng? location}) {
     final titleController = TextEditingController(text: pin?.title ?? '');
     final descController = TextEditingController(text: pin?.description ?? '');
     List<String> selectedImages = List.from(pin?.imagePaths ?? []);
@@ -289,8 +393,21 @@ class _MapScreenState extends State<MapScreen> {
                     final description = descController.text.trim();
 
                     if (pin == null) {
+                      if (location == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('กรุณาเลือกตำแหน่งบนแผนที่ก่อน')),
+                        );
+                        return;
+                      }
+
                       Navigator.pop(dialogContext);
-                      _selectLocationOnMap(title, description, selectedImages);
+                      await _saveNewPin(
+                        lat: location.latitude,
+                        lng: location.longitude,
+                        title: title,
+                        description: description,
+                        images: selectedImages,
+                      );
                       return;
                     }
 
@@ -315,58 +432,6 @@ class _MapScreenState extends State<MapScreen> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: image,
-    );
-  }
-
-  void _selectLocationOnMap(
-    String title,
-    String description,
-    List<String> images,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'ใช้จุดศูนย์กลางแผนที่เป็นตำแหน่งหมุด?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text('ยกเลิก'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    final center = _mapController.camera.center;
-                    await _saveNewPin(
-                      lat: center.latitude,
-                      lng: center.longitude,
-                      title: title,
-                      description: description,
-                      images: images,
-                    );
-                  },
-                  child: const Text('ยืนยัน'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -567,7 +632,7 @@ class _MapScreenState extends State<MapScreen> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () {
-                        _showPinDialog(_selectedPin);
+                        _showPinDialog(pin: _selectedPin);
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('แก้ไข'),
