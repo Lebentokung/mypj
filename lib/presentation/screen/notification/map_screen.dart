@@ -194,33 +194,64 @@ class _MapScreenState extends State<MapScreen> {
               _selectedPin = pin;
             });
           },
-          child: Column(
+          child: _buildMarkerWidget(pin: pin, isSelected: isSelected),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildMarkerWidget({required MapPin pin, required bool isSelected}) {
+    final markerColor = isSelected ? AppColors.error : AppColors.success;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: markerColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.24),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.error : AppColors.success,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              const Icon(Icons.place, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
                 child: Text(
                   pin.title.isNotEmpty ? pin.title : 'หมุดของฉัน',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              Icon(
-                Icons.location_on,
-                color: isSelected ? AppColors.error : AppColors.success,
-                size: 30,
               ),
             ],
           ),
         ),
-      );
-    }).toList();
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 2),
+          decoration: BoxDecoration(
+            color: markerColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildZoomControls() {
@@ -277,146 +308,252 @@ class _MapScreenState extends State<MapScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: !_isSavingPin,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(pin == null ? 'เพิ่มหมุดใหม่' : 'แก้ไขหมุด'),
-              content: SingleChildScrollView(
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.82,
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
-                      controller: titleController,
-                      decoration: InputDecoration(
-                        hintText: 'ชื่อสถานที่',
-                        labelText: 'ชื่อสถานที่',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descController,
-                      decoration: InputDecoration(
-                        hintText: 'คำบรรยาย',
-                        labelText: 'คำบรรยาย',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'รูปภาพ (${selectedImages.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    if (selectedImages.isNotEmpty)
-                      SizedBox(
-                        height: 100,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: selectedImages.length,
-                          itemBuilder: (context, index) => Stack(
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                child: _buildImagePreviewWidget(selectedImages[index]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pin == null ? 'เพิ่มหมุดใหม่' : 'แก้ไขหมุด',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (location != null)
+                            Text(
+                              'Lat ${location.latitude.toStringAsFixed(5)}, Lng ${location.longitude.toStringAsFixed(5)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    selectedImages.removeAt(index);
-                                    setDialogState(() {});
-                                  },
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
-                                      size: 20,
+                            ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextField(
+                              controller: titleController,
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                hintText: 'ชื่อสถานที่',
+                                labelText: 'ชื่อสถานที่',
+                                prefixIcon: const Icon(Icons.place_outlined),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: descController,
+                              decoration: InputDecoration(
+                                hintText: 'คำบรรยาย',
+                                labelText: 'คำบรรยาย',
+                                prefixIcon: const Icon(Icons.description_outlined),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                const Text(
+                                  'รูปภาพ',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '${selectedImages.length} รูป',
+                                    style: const TextStyle(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (selectedImages.isNotEmpty)
+                              SizedBox(
+                                height: 106,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: selectedImages.length,
+                                  itemBuilder: (context, index) => Stack(
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        child: _buildImagePreviewWidget(selectedImages[index]),
+                                      ),
+                                      Positioned(
+                                        top: 2,
+                                        right: 10,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            selectedImages.removeAt(index);
+                                            setDialogState(() {});
+                                          },
+                                          child: Container(
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
+                                height: 84,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: const Text('ยังไม่มีรูปในหมุดนี้'),
                               ),
-                            ],
-                          ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final image = await _imagePicker.pickImage(
+                                        source: ImageSource.camera,
+                                      );
+                                      if (!dialogContext.mounted || image == null) {
+                                        return;
+                                      }
+                                      selectedImages.add(image.path);
+                                      setDialogState(() {});
+                                    },
+                                    icon: const Icon(Icons.camera_alt),
+                                    label: const Text('ถ่ายรูป'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final image = await _imagePicker.pickImage(
+                                        source: ImageSource.gallery,
+                                      );
+                                      if (!dialogContext.mounted || image == null) {
+                                        return;
+                                      }
+                                      selectedImages.add(image.path);
+                                      setDialogState(() {});
+                                    },
+                                    icon: const Icon(Icons.image_outlined),
+                                    label: const Text('แกลลอรี่'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final image = await _imagePicker.pickImage(
-                          source: ImageSource.camera,
-                        );
-                        if (image != null) {
-                          selectedImages.add(image.path);
-                          setDialogState(() {});
-                        }
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('ถ่ายรูป'),
                     ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final image = await _imagePicker.pickImage(
-                          source: ImageSource.gallery,
-                        );
-                        if (image != null) {
-                          selectedImages.add(image.path);
-                          setDialogState(() {});
-                        }
-                      },
-                      icon: const Icon(Icons.image),
-                      label: const Text('เลือกจากแกลลอรี่'),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('ยกเลิก'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () async {
+                                final title = titleController.text.trim();
+                                final description = descController.text.trim();
+
+                                if (pin == null) {
+                                  if (location == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('กรุณาเลือกตำแหน่งบนแผนที่ก่อน'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.pop(dialogContext);
+                                  await _saveNewPin(
+                                    lat: location.latitude,
+                                    lng: location.longitude,
+                                    title: title,
+                                    description: description,
+                                    images: selectedImages,
+                                  );
+                                  return;
+                                }
+
+                                Navigator.pop(dialogContext);
+                                await _updatePin(pin, title, description, selectedImages);
+                              },
+                              child: Text(pin == null ? 'บันทึกหมุด' : 'บันทึกการแก้ไข'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('ยกเลิก'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final title = titleController.text.trim();
-                    final description = descController.text.trim();
-
-                    if (pin == null) {
-                      if (location == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('กรุณาเลือกตำแหน่งบนแผนที่ก่อน')),
-                        );
-                        return;
-                      }
-
-                      Navigator.pop(dialogContext);
-                      await _saveNewPin(
-                        lat: location.latitude,
-                        lng: location.longitude,
-                        title: title,
-                        description: description,
-                        images: selectedImages,
-                      );
-                      return;
-                    }
-
-                    Navigator.pop(dialogContext);
-                    await _updatePin(pin, title, description, selectedImages);
-                  },
-                  child: Text(pin == null ? 'ต่อไป' : 'บันทึก'),
-                ),
-              ],
             );
           },
         );
@@ -425,13 +562,51 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildImagePreviewWidget(String path) {
-    final image = path.startsWith('http://') || path.startsWith('https://')
-        ? Image.network(path, width: 100, height: 100, fit: BoxFit.cover)
-        : Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover);
+    final isNetworkImage = path.startsWith('http://') || path.startsWith('https://');
+    final localFile = File(path);
+    final localFileExists = !isNetworkImage && localFile.existsSync();
+
+    Widget image;
+    if (isNetworkImage) {
+      image = Image.network(
+        path,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPreviewFallback(),
+      );
+    } else if (localFileExists) {
+      image = Image.file(
+        localFile,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPreviewFallback(),
+      );
+    } else {
+      image = _buildPreviewFallback();
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: image,
+      child: Container(
+        width: 100,
+        height: 100,
+        color: Colors.grey.shade200,
+        child: image,
+      ),
+    );
+  }
+
+  Widget _buildPreviewFallback() {
+    return const ColoredBox(
+      color: Color(0xFFECEFF1),
+      child: Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: Color(0xFF78909C),
+        ),
+      ),
     );
   }
 
