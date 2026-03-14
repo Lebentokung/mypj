@@ -187,6 +187,9 @@ class _MapScreenState extends State<MapScreen> {
       final isSelected = _selectedPin?.id == pin.id;
       return Marker(
         point: pin.location,
+        width: 170,
+        height: 72,
+        alignment: Alignment.topCenter,
         child: GestureDetector(
           onTap: () {
             _mapController.move(pin.location, _mapController.camera.zoom);
@@ -202,15 +205,18 @@ class _MapScreenState extends State<MapScreen> {
 
   Widget _buildMarkerWidget({required MapPin pin, required bool isSelected}) {
     final markerColor = isSelected ? AppColors.error : AppColors.success;
+    final imagePath = pin.imagePaths.isNotEmpty ? pin.imagePaths.first : null;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          width: 160,
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: markerColor,
-            borderRadius: BorderRadius.circular(999),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white, width: 1.8),
             boxShadow: [
               BoxShadow(
@@ -223,34 +229,121 @@ class _MapScreenState extends State<MapScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.place, color: Colors.white, size: 14),
-              const SizedBox(width: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 120),
-                child: Text(
-                  pin.title.isNotEmpty ? pin.title : 'หมุดของฉัน',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+              _buildMarkerThumbnail(imagePath),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      pin.title.isNotEmpty ? pin.title : 'หมุดของฉัน',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: markerColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'แตะเพื่อดูรายละเอียด',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF607D8B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              Icon(
+                Icons.place,
+                color: markerColor,
+                size: 16,
               ),
             ],
           ),
         ),
         Container(
-          width: 6,
-          height: 6,
+          width: 10,
+          height: 10,
           margin: const EdgeInsets.only(top: 2),
           decoration: BoxDecoration(
             color: markerColor,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMarkerThumbnail(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return _buildMarkerThumbnailFallback();
+    }
+
+    final isNetworkImage =
+        imagePath.startsWith('http://') || imagePath.startsWith('https://');
+    final localFile = File(imagePath);
+
+    Widget image;
+    if (isNetworkImage) {
+      image = Image.network(
+        imagePath,
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildMarkerThumbnailFallback(),
+      );
+    } else if (localFile.existsSync()) {
+      image = Image.file(
+        localFile,
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildMarkerThumbnailFallback(),
+      );
+    } else {
+      image = _buildMarkerThumbnailFallback();
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 36,
+        height: 36,
+        color: Colors.grey.shade200,
+        child: image,
+      ),
+    );
+  }
+
+  Widget _buildMarkerThumbnailFallback() {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(
+        Icons.image_outlined,
+        size: 18,
+        color: Color(0xFF546E7A),
+      ),
     );
   }
 
