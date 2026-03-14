@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_application_2/core/services/cloudinary_service.dart';
 import 'package:flutter_application_2/core/models/map_pin_model.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -10,14 +10,14 @@ class PinService {
   PinService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
+      CloudinaryService? cloudinary,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+      _cloudinary = cloudinary ?? CloudinaryService();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+    final CloudinaryService _cloudinary;
 
   String get _uid {
     final uid = _auth.currentUser?.uid;
@@ -147,14 +147,11 @@ class PinService {
         continue;
       }
 
-      final ref = _storage
-          .ref()
-          .child('pin_images')
-          .child(_uid)
-          .child(pinId)
-          .child('image_$i.jpg');
-      await ref.putFile(file);
-      urls.add(await ref.getDownloadURL());
+      final uploadedUrl = await _cloudinary.uploadImage(
+        filePath: file.path,
+        folder: 'pin_images/$_uid/$pinId',
+      );
+      urls.add(uploadedUrl);
     }
 
     return urls;

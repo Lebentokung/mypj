@@ -55,8 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickProfileImage() async {
     final selected = await _imagePicker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1024,
     );
 
     if (!mounted || selected == null) return;
@@ -82,6 +80,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
       );
     } finally {
       if (mounted) {

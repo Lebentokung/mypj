@@ -2,20 +2,20 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_application_2/core/services/cloudinary_service.dart';
 
 class ProfileService {
   ProfileService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
+      CloudinaryService? cloudinary,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+      _cloudinary = cloudinary ?? CloudinaryService();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+    final CloudinaryService _cloudinary;
 
   Future<Map<String, String?>> getProfileData() async {
     final uid = _auth.currentUser?.uid;
@@ -46,9 +46,10 @@ class ProfileService {
       );
     }
 
-    final ref = _storage.ref().child('profile_images').child(uid).child('avatar.jpg');
-    await ref.putFile(imageFile);
-    final url = await ref.getDownloadURL();
+    final url = await _cloudinary.uploadImage(
+      filePath: imageFile.path,
+      folder: 'profile_images/$uid',
+    );
 
     await _firestore.collection('users').doc(uid).set({
       'profile_image_url': url,
