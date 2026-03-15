@@ -29,6 +29,11 @@ class _MapScreenState extends State<MapScreen> {
   bool _isLoadingPins = true;
   bool _isSavingPin = false;
 
+  String? get _currentUid => FirebaseAuth.instance.currentUser?.uid;
+
+  bool _isOwnPin(MapPin? pin) =>
+      pin != null && _currentUid != null && pin.userId == _currentUid;
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +46,7 @@ class _MapScreenState extends State<MapScreen> {
     });
 
     try {
-      final pins = await _pinService.getMyPins();
+      final pins = await _pinService.getAllPins();
       if (!mounted) {
         return;
       }
@@ -50,6 +55,25 @@ class _MapScreenState extends State<MapScreen> {
         _selectedPin = null;
       });
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'permission-denied') {
+        try {
+          final myPins = await _pinService.getMyPins();
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _pins = myPins;
+            _selectedPin = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ยังไม่เปิดสิทธิ์หมุดสาธารณะ กำลังแสดงเฉพาะหมุดของฉัน'),
+            ),
+          );
+          return;
+        } catch (_) {}
+      }
+
       if (!mounted) {
         return;
       }
@@ -93,7 +117,7 @@ class _MapScreenState extends State<MapScreen> {
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: const LatLng(13.7563, 100.5018),
+                    initialCenter: const LatLng(14.0228, 99.9716),
                     initialZoom: 14,
                     interactionOptions: const InteractionOptions(
                       flags: ~InteractiveFlag.doubleTapZoom,
@@ -185,6 +209,7 @@ class _MapScreenState extends State<MapScreen> {
   List<Marker> _buildMarkers() {
     return _pins.map((pin) {
       final isSelected = _selectedPin?.id == pin.id;
+      final isMine = _isOwnPin(pin);
       return Marker(
         point: pin.location,
         width: 170,
@@ -197,14 +222,24 @@ class _MapScreenState extends State<MapScreen> {
               _selectedPin = pin;
             });
           },
-          child: _buildMarkerWidget(pin: pin, isSelected: isSelected),
+          child: _buildMarkerWidget(
+            pin: pin,
+            isSelected: isSelected,
+            isMine: isMine,
+          ),
         ),
       );
     }).toList();
   }
 
-  Widget _buildMarkerWidget({required MapPin pin, required bool isSelected}) {
-    final markerColor = isSelected ? AppColors.error : AppColors.success;
+  Widget _buildMarkerWidget({
+    required MapPin pin,
+    required bool isSelected,
+    required bool isMine,
+  }) {
+    final markerColor = isSelected
+        ? AppColors.error
+        : (isMine ? AppColors.success : const Color(0xFF546E7A));
     final imagePath = pin.imagePaths.isNotEmpty ? pin.imagePaths.first : null;
 
     return Column(
@@ -247,11 +282,11 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'แตะเพื่อดูรายละเอียด',
+                    Text(
+                      isMine ? 'หมุดของฉัน' : 'หมุดสาธารณะ',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color(0xFF607D8B),
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
@@ -839,6 +874,9 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildPinDetails() {
     if (_selectedPin == null) return const SizedBox.shrink();
 
+    final selectedPin = _selectedPin!;
+    final isOwnSelectedPin = _isOwnPin(selectedPin);
+
     return Container(
       color: Colors.white,
       child: Column(
@@ -846,26 +884,26 @@ class _MapScreenState extends State<MapScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // รูป Preview
-          if (_selectedPin!.imagePaths.isNotEmpty)
+          if (selectedPin.imagePaths.isNotEmpty)
             SizedBox(
               height: 150,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: _selectedPin!.imagePaths.length,
+                itemCount: selectedPin.imagePaths.length,
                 itemBuilder: (context, index) => Container(
                   margin: const EdgeInsets.all(8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: _selectedPin!.imagePaths[index].startsWith('http://') ||
-                            _selectedPin!.imagePaths[index].startsWith('https://')
+                    child: selectedPin.imagePaths[index].startsWith('http://') ||
+                            selectedPin.imagePaths[index].startsWith('https://')
                         ? Image.network(
-                            _selectedPin!.imagePaths[index],
+                            selectedPin.imagePaths[index],
                             width: 150,
                             height: 150,
                             fit: BoxFit.cover,
                           )
                         : Image.file(
-                            File(_selectedPin!.imagePaths[index]),
+                            File(selectedPin.imagePaths[index]),
                             width: 150,
                             height: 150,
                             fit: BoxFit.cover,
@@ -881,15 +919,26 @@ class _MapScreenState extends State<MapScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _selectedPin!.title,
+                  selectedPin.title,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  isOwnSelectedPin ? 'หมุดของฉัน' : 'หมุดของผู้ใช้อื่น',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isOwnSelectedPin
+                        ? AppColors.success
+                        : const Color(0xFF546E7A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
-                  _selectedPin!.description,
+                  selectedPin.description,
                   style: const TextStyle(fontSize: 14),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -898,21 +947,23 @@ class _MapScreenState extends State<MapScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        _showPinDialog(pin: _selectedPin);
-                      },
-                      icon: const Icon(Icons.edit),
-                      label: const Text('แก้ไข'),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _deleteSelectedPin,
-                      icon: const Icon(Icons.delete),
-                      label: const Text('ลบ'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                    if (isOwnSelectedPin)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _showPinDialog(pin: _selectedPin);
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('แก้ไข'),
                       ),
-                    ),
+                    if (isOwnSelectedPin)
+                      ElevatedButton.icon(
+                        onPressed: _deleteSelectedPin,
+                        icon: const Icon(Icons.delete),
+                        label: const Text('ลบ'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
                     ElevatedButton.icon(
                       onPressed: () {
                         setState(() {

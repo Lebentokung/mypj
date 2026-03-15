@@ -93,10 +93,21 @@ class FirebaseAuthService {
     if (normalizedIdentifier.contains('@')) {
       emailForLogin = normalizedIdentifier;
     } else {
-      final usernameDoc = await _firestore
-          .collection('usernames')
-          .doc(normalizedIdentifier.toLowerCase())
-          .get();
+      DocumentSnapshot<Map<String, dynamic>> usernameDoc;
+      try {
+        usernameDoc = await _firestore
+            .collection('usernames')
+            .doc(normalizedIdentifier.toLowerCase())
+            .get();
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          throw FirebaseAuthException(
+            code: 'permission-denied',
+            message: 'Firestore rules ยังไม่อนุญาตให้อ่าน usernames',
+          );
+        }
+        rethrow;
+      }
 
       if (!usernameDoc.exists) {
         throw FirebaseAuthException(

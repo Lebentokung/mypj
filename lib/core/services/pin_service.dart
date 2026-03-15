@@ -54,6 +54,27 @@ class PinService {
     }
   }
 
+  Future<List<MapPin>> getAllPins() async {
+    try {
+      final snapshot = await _firestore.collection('pins').get();
+
+      final pins = snapshot.docs
+          .map((doc) => MapPin.fromMap(doc.id, doc.data()))
+          .toList();
+
+      pins.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return pins;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw FirebaseAuthException(
+          code: 'permission-denied',
+          message: 'ยังไม่มีสิทธิ์ดูหมุดทั้งหมด (ต้องอัปเดต Firestore Rules)',
+        );
+      }
+      rethrow;
+    }
+  }
+
   Future<MapPin> addPin({
     required double lat,
     required double lng,
