@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_application_2/core/theme/app_colors.dart';
 import 'package:flutter_application_2/presentation/screen/notification/bounding_box_painter.dart';
+import 'package:flutter_application_2/presentation/screen/notification/map_screen.dart';
 
 class NotificationMainScreen extends StatefulWidget {
   const NotificationMainScreen({Key? key}) : super(key: key);
@@ -235,6 +236,42 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
       _scanResult = null;
       _imageSize = null;
     });
+  }
+
+  void _handleQuickPin() {
+    if (_scanResult == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณาสแกนก่อนปักหมุด')),
+      );
+      return;
+    }
+
+    final predictions = _scanResult!['predictions'] as List?;
+    if (predictions == null || predictions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่พบผลการสแกนสำหรับปักหมุด')),
+      );
+      return;
+    }
+
+    final topPrediction = predictions.first;
+    final englishName = topPrediction['class'] as String? ?? '';
+    final thaiName = _translateFlowerName(englishName);
+    final confidence = (topPrediction['confidence'] as num?)?.toDouble() ?? 0;
+
+    final title = 'หมุด: $thaiName';
+    final description = 'พบ $thaiName (${(confidence * 100).toStringAsFixed(1)}%) จากการสแกน';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MapScreen(
+          prefillTitle: title,
+          prefillDescription: description,
+          autoOpenPinDialog: true,
+        ),
+      ),
+    );
   }
 
   @override
@@ -513,6 +550,28 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                     ),
                   ),
                 
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleQuickPin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.push_pin_outlined),
+                      label: const Text(
+                        'ปักหมุดด่วน',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [

@@ -138,6 +138,27 @@ class PinService {
 
   Future<void> deletePin(String pinId) async {
     try {
+      // ดึงข้อมูลหมุดก่อน
+      final doc = await _firestore.collection('pins').doc(pinId).get();
+      if (!doc.exists) {
+        throw FirebaseAuthException(
+          code: 'not-found',
+          message: 'ไม่พบหมุดนี้',
+        );
+      }
+
+      final data = doc.data() as Map<String, dynamic>?;
+      final pinUserId = data?['user_id'] as String?;
+
+      // ตรวจสอบว่า user นี้เป็นเจ้าของหมุด
+      if (pinUserId != _uid) {
+        throw FirebaseAuthException(
+          code: 'permission-denied',
+          message: 'ไม่มีสิทธิ์ลบหมุด เฉพาะเจ้าของหมุดเท่านั้นที่สามารถลบได้',
+        );
+      }
+
+      // ลบหมุด
       await _firestore.collection('pins').doc(pinId).delete();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {

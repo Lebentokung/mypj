@@ -10,13 +10,22 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final String? prefillTitle;
+  final String? prefillDescription;
+  final bool autoOpenPinDialog;
+
+  const MapScreen({
+    super.key,
+    this.prefillTitle,
+    this.prefillDescription,
+    this.autoOpenPinDialog = false,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   static const double _minZoom = 3;
   static const double _maxZoom = 19;
 
@@ -28,6 +37,7 @@ class _MapScreenState extends State<MapScreen> {
   MapPin? _selectedPin;
   bool _isLoadingPins = true;
   bool _isSavingPin = false;
+  AppLifecycleState? _lastLifecycleState;
 
   String? get _currentUid => FirebaseAuth.instance.currentUser?.uid;
 
@@ -37,7 +47,30 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPins();
+    WidgetsBinding.instance.addObserver(this);
+    _loadPins().then((_) {
+      if (widget.autoOpenPinDialog) {
+        _addPinAtCurrentLocation(
+          title: widget.prefillTitle,
+          description: widget.prefillDescription,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _lastLifecycleState != AppLifecycleState.resumed) {
+      // App กลับมา visible - reload pins
+      _loadPins();
+    }
+    _lastLifecycleState = state;
   }
 
   Future<void> _loadPins() async {
@@ -96,7 +129,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _addPinAtCurrentLocation() async {
+  Future<void> _addPinAtCurrentLocation({String? title, String? description}) async {
     if (_isSavingPin) return;
 
     setState(() {
@@ -138,7 +171,11 @@ class _MapScreenState extends State<MapScreen> {
       _mapController.move(currentLocation, 16);
 
       // แสดง dialog เพิ่มหมุด
-      _showPinDialog(location: currentLocation);
+      _showPinDialog(
+        location: currentLocation,
+        prefillTitle: title,
+        prefillDescription: description,
+      );
 
     } catch (e) {
       if (!mounted) return;
@@ -441,9 +478,9 @@ class _MapScreenState extends State<MapScreen> {
     _mapController.move(_mapController.camera.center, nextZoom);
   }
 
-  void _showPinDialog({MapPin? pin, LatLng? location}) {
-    final titleController = TextEditingController(text: pin?.title ?? '');
-    final descController = TextEditingController(text: pin?.description ?? '');
+  void _showPinDialog({MapPin? pin, LatLng? location, String? prefillTitle, String? prefillDescription}) {
+    final titleController = TextEditingController(text: pin?.title ?? prefillTitle ?? '');
+    final descController = TextEditingController(text: pin?.description ?? prefillDescription ?? '');
     List<String> selectedImages = List.from(pin?.imagePaths ?? []);
 
     showDialog(
@@ -857,6 +894,32 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
+    // แสดง dialog ยืนยันการลบ
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ยืนยันการลบหมุด'),
+        content: const Text('คุณแน่ใจที่จะลบหมุดนี้หรือไม่ การกระทำนี้ไม่สามารถย้อนกลับได้'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'ลบ',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!shouldDelete) {
+      return;
+    }
+
     try {
       await _pinService.deletePin(pin.id);
       if (!mounted) {
@@ -866,6 +929,10 @@ class _MapScreenState extends State<MapScreen> {
         _pins.removeWhere((p) => p.id == pin.id);
         _selectedPin = null;
       });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ลบหมุดสำเร็จ')),
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) {
         return;
