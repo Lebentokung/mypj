@@ -150,7 +150,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
       final base64Image = base64Encode(bytes);
 
       final response = await http.post(
-        Uri.parse('https://serverless.roboflow.com/ssaa/1?api_key=Uv5o5cXmXkcu1gbiruJk'),
+        Uri.parse('https://serverless.roboflow.com/ssaa-2-vv1tl/1?api_key=eQdxSzHpsJFq2uw8K1W0'),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
