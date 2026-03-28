@@ -24,6 +24,41 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
   bool _isAnalyzing = false;
   Size? _imageSize;
 
+  // Flower name translations
+  static const Map<String, String> _flowerTranslations = {
+    'Fukien-Tea': 'ชาดัด',
+    'Gerbera': 'ดอกเยอบีร่า',
+    'Golden-Shower': 'ดอกราชพฤกษ์',
+    'Hibiscus': 'ดอกชบา',
+    'leafless-spurge': 'พญาไร้ใบ',
+    'sesbania-flower': 'ดอกแค',
+    'bougainvillea': 'ดอกเฟื่องฟ้า',
+    'carnation': 'ดอกคาร์เนชั่น',
+    'chrysanthemum': 'ดอกเบญจมาศ',
+    'cotton Flower': 'ดอกฝ้าย',
+    'Daisy': 'ดอกเดซี่',
+    'Dandelion': 'ดอกแดนดิไลลออน',
+    'Iris': 'ดอกไอริส',
+    'Ixora': 'ดอกเข็ม',
+    'Jasmine': 'ดอกมะลิ',
+    'Marigold': 'ดอกดาวเรือง',
+    'Orchid': 'ดอกกล้วยไม้',
+    'Pansy': 'ดอกหน้าแมว',
+    'Plumeria': 'ดอกลั่นทม',
+    'Poppy': 'ดอกป๊อปปี้',
+    'Siam-Tulip': 'ดอกกระเจียว',
+    'Tea': 'ใบชา',
+    'Pink-Trumpet-Tree': 'ดอกชมพูพันธุ์ทิพย์',
+    'Tulip': 'ดอกทิวลิป',
+    'Lavender': 'ลาเวนเดอร์',
+    'rose': 'ดอกกุหลาบ',
+    'sunflower': 'ดอกทานตะวัน',
+  };
+
+  String _translateFlowerName(String englishName) {
+    return _flowerTranslations[englishName] ?? englishName;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -461,10 +496,12 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                         ),
                         if ((_scanResult!['predictions'] as List?)?.isNotEmpty ?? false)
                           ...(_scanResult!['predictions'] as List).take(3).map((pred) {
+                            final englishName = pred['class'] as String? ?? '';
+                            final thaiName = _translateFlowerName(englishName);
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                '• ${pred['class']} (${(pred['confidence'] * 100).toStringAsFixed(1)}%)',
+                                '• $thaiName (${(pred['confidence'] * 100).toStringAsFixed(1)}%)',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Colors.black87,
