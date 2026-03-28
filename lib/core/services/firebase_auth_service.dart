@@ -151,4 +151,17 @@ class FirebaseAuthService {
 
     return displayName;
   }
+
+  Future<String?> getCurrentUsername() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    try {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return null;
+      final data = userDoc.data();
+      return data?['username'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
 }
