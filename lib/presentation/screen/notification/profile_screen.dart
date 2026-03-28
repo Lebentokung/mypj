@@ -99,14 +99,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openEditProfileDialog() async {
     final controller = TextEditingController(text: _displayName);
 
-    final updatedName = await showDialog<String>(
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('แก้ไขโปรไฟล์'),
-        content: TextField(
-          controller: controller,
-          style: const TextStyle(fontSize: 16),
-          decoration: const InputDecoration(labelText: 'ชื่อที่แสดง'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // รูปโปรไฟล์แบบวงกลมที่กดได้
+            InkWell(
+              onTap: () async {
+                // เลือกรูปโดยไม่ปิด dialog
+                final selected = await _imagePicker.pickImage(
+                  source: ImageSource.gallery,
+                );
+
+                if (!mounted || selected == null) return;
+
+                setState(() {
+                  _profileImage = File(selected.path);
+                  _isUploadingImage = true;
+                });
+
+                try {
+                  final imageUrl = await _profileService.uploadProfileImage(_profileImage!);
+                  if (!mounted) return;
+
+                  setState(() {
+                    _profileImageUrl = imageUrl;
+                  });
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์สำเร็จ')),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.message ?? 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
+                  );
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('อัปโหลดรูปโปรไฟล์ไม่สำเร็จ')),
+                  );
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _isUploadingImage = false;
+                    });
+                  }
+                }
+              },
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.grey[200],
+                child: ClipOval(
+                  child: _isUploadingImage
+                      ? const CircularProgressIndicator(strokeWidth: 2)
+                      : _profileImage != null
+                      ? Image.file(
+                          _profileImage!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                      ? Image.network(
+                          _profileImageUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : const Icon(Icons.person, size: 40),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(labelText: 'ชื่อที่แสดง'),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -114,34 +189,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('ยกเลิก'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            onPressed: () async {
+              final updatedName = controller.text.trim();
+              if (updatedName.isNotEmpty && updatedName != _displayName) {
+                try {
+                  await _profileService.updateDisplayName(updatedName);
+                  if (!mounted) return;
+
+                  setState(() {
+                    _displayName = updatedName;
+                  });
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('แก้ไขโปรไฟล์สำเร็จ')),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.message ?? 'แก้ไขโปรไฟล์ไม่สำเร็จ')),
+                  );
+                }
+              }
+              Navigator.of(context).pop();
+            },
             child: const Text('บันทึก'),
           ),
         ],
       ),
     );
-
-    if (!mounted || updatedName == null || updatedName.isEmpty) return;
-
-    try {
-      await _profileService.updateDisplayName(updatedName);
-
-      if (!mounted) return;
-
-      setState(() {
-        _displayName = updatedName;
-      });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('แก้ไขโปรไฟล์สำเร็จ')));
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'แก้ไขโปรไฟล์ไม่สำเร็จ')),
-      );
-    }
   }
 
   @override
@@ -165,19 +241,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 profileImage: _profileImage,
                 profileImageUrl: _profileImageUrl,
                 isUploadingImage: _isUploadingImage,
-                onTapProfileImage: _pickProfileImage,
               ),
               const SizedBox(height: 16),
               _ProfileMenuCard(
                 icon: Icons.edit,
                 title: 'แก้ไขโปรไฟล์',
                 onTap: _openEditProfileDialog,
-              ),
-              const SizedBox(height: 12),
-              _ProfileMenuCard(
-                icon: Icons.history,
-                title: 'ประวัติการวางหมุด',
-                onTap: () {},
               ),
               const SizedBox(height: 12),
               _ProfileMenuCard(
@@ -213,7 +282,6 @@ class _ProfileHeaderCard extends StatelessWidget {
     required this.profileImage,
     required this.profileImageUrl,
     required this.isUploadingImage,
-    required this.onTapProfileImage,
   });
 
   final String username;
@@ -221,7 +289,6 @@ class _ProfileHeaderCard extends StatelessWidget {
   final File? profileImage;
   final String? profileImageUrl;
   final bool isUploadingImage;
-  final VoidCallback onTapProfileImage;
 
   @override
   Widget build(BuildContext context) {
@@ -240,31 +307,27 @@ class _ProfileHeaderCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(100),
-            onTap: onTapProfileImage,
-            child: CircleAvatar(
-              radius: 36,
-              backgroundColor: Colors.white,
-              child: ClipOval(
-                child: isUploadingImage
-                    ? const CircularProgressIndicator(strokeWidth: 2)
-                    : profileImage != null
-                    ? Image.file(
-                        profileImage!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                    ? Image.network(
-                        profileImageUrl!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : const Icon(Icons.person, size: 40),
-              ),
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: Colors.white,
+            child: ClipOval(
+              child: isUploadingImage
+                  ? const CircularProgressIndicator(strokeWidth: 2)
+                  : profileImage != null
+                  ? Image.file(
+                      profileImage!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                  ? Image.network(
+                      profileImageUrl!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : const Icon(Icons.person, size: 40),
             ),
           ),
           const SizedBox(width: 18),

@@ -7,6 +7,7 @@ import 'package:flutter_application_2/core/theme/app_colors.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -25,7 +26,6 @@ class _MapScreenState extends State<MapScreen> {
 
   List<MapPin> _pins = [];
   MapPin? _selectedPin;
-  bool _isPickingLocation = false;
   bool _isLoadingPins = true;
   bool _isSavingPin = false;
 
@@ -96,6 +96,64 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _addPinAtCurrentLocation() async {
+    if (_isSavingPin) return;
+
+    setState(() {
+      _isSavingPin = true;
+    });
+
+    try {
+      // ตรวจสอบและขอสิทธิ์การเข้าถึงตำแหน่ง
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อปักหมุด')),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('กรุณาเปิดสิทธิ์การเข้าถึงตำแหน่งในตั้งค่า')),
+        );
+        return;
+      }
+
+      // หาตำแหน่งปัจจุบัน
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final currentLocation = LatLng(position.latitude, position.longitude);
+
+      if (!mounted) return;
+
+      // ย้ายแผนที่ไปยังตำแหน่งปัจจุบัน
+      _mapController.move(currentLocation, 16);
+
+      // แสดง dialog เพิ่มหมุด
+      _showPinDialog(location: currentLocation);
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ไม่สามารถหาตำแหน่งได้: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingPin = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,17 +180,6 @@ class _MapScreenState extends State<MapScreen> {
                     interactionOptions: const InteractionOptions(
                       flags: ~InteractiveFlag.doubleTapZoom,
                     ),
-                    onLongPress: (tapPosition, point) {
-                      if (_isSavingPin || !_isPickingLocation) {
-                        return;
-                      }
-
-                      setState(() {
-                        _isPickingLocation = false;
-                      });
-
-                      _showPinDialog(location: point);
-                    },
                   ),
                   children: [
                     TileLayer(
@@ -145,27 +192,6 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ],
                 ),
-                if (_isPickingLocation)
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.72),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'โหมดเพิ่มหมุด: แตะค้างบนแผนที่เพื่อเลือกตำแหน่ง',
-                        style: TextStyle(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
                 Positioned(
                   right: 12,
                   bottom: _selectedPin != null ? 220 : 90,
@@ -174,22 +200,8 @@ class _MapScreenState extends State<MapScreen> {
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _isSavingPin
-            ? null
-            : () {
-                setState(() {
-                  _isPickingLocation = !_isPickingLocation;
-                });
-
-                if (_isPickingLocation) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('แตะค้างบนแผนที่เพื่อเลือกตำแหน่งหมุดใหม่'),
-                    ),
-                  );
-                }
-              },
-        backgroundColor: _isPickingLocation ? AppColors.error : AppColors.success,
+        onPressed: _isSavingPin ? null : _addPinAtCurrentLocation,
+        backgroundColor: AppColors.success,
         foregroundColor: AppColors.secondary,
         tooltip: 'เพิ่มหมุดของฉัน',
         icon: _isSavingPin
@@ -198,8 +210,8 @@ class _MapScreenState extends State<MapScreen> {
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Icon(_isPickingLocation ? Icons.close : Icons.add_location),
-        label: Text(_isPickingLocation ? 'ยกเลิกเพิ่มหมุด' : 'เพิ่มหมุด'),
+            : const Icon(Icons.my_location),
+        label: const Text('ปักหมุดที่นี่'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomSheet: _selectedPin != null ? _buildPinDetails() : null,
