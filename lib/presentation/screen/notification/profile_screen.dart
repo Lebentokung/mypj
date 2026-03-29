@@ -293,64 +293,70 @@ class _ProfileHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.success,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        gradient: LinearGradient(
+          colors: [
+            AppColors.success,
+            AppColors.success.withOpacity(0.7),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundColor: Colors.white,
-            child: ClipOval(
-              child: isUploadingImage
-                  ? const CircularProgressIndicator(strokeWidth: 2)
-                  : profileImage != null
-                  ? Image.file(
-                      profileImage!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                  ? Image.network(
-                      profileImageUrl!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : const Icon(Icons.person, size: 40),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.white,
+                child: ClipOval(
+                  child: isUploadingImage
+                      ? const CircularProgressIndicator()
+                      : profileImage != null
+                          ? Image.file(
+                              profileImage!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : (profileImageUrl != null &&
+                                  profileImageUrl!.isNotEmpty)
+                              ? Image.network(
+                                  profileImageUrl!,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(Icons.person, size: 50),
+                ),
+              ),
+
+          
+              
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            username,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-          const SizedBox(width: 18),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                username,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                email,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color.fromARGB(255, 255, 255, 255),
-                ),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            email,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
           ),
         ],
       ),

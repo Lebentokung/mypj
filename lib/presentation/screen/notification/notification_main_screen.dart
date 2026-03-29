@@ -77,7 +77,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
         );
 
         await _cameraController!.initialize();
-        
+
         if (mounted) {
           setState(() {
             _isInitialized = true;
@@ -106,19 +106,18 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
 
     try {
       final image = await _cameraController!.takePicture();
-      
+
       if (mounted) {
         setState(() {
           _capturedImagePath = image.path;
           _isScanning = false;
           _scanResult = null; // Reset previous scan result
         });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ถ่ายรูปสำเร็จ')),
-        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ถ่ายรูปสำเร็จ')));
       }
-      
     } catch (e) {
       print('Error taking picture: $e');
       if (mounted) {
@@ -141,26 +140,26 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
 
     try {
       final imageFile = File(_capturedImagePath!);
-      
+
       // ตรวจสอบว่าไฟล์มีอยู่จริง
       if (!await imageFile.exists()) {
         throw Exception('ไม่พบไฟล์ภาพ กรุณาถ่าย/เลือกภาพใหม่');
       }
-      
+
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
 
       final response = await http.post(
-        Uri.parse('https://serverless.roboflow.com/ssaa-2-vv1tl/1?api_key=eQdxSzHpsJFq2uw8K1W0'),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        Uri.parse(
+          'https://serverless.roboflow.com/ssaa-2-vv1tl/1?api_key=eQdxSzHpsJFq2uw8K1W0',
+        ),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: base64Image,
       );
 
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
-        
+
         // Get image dimensions from result
         if (result['image'] != null) {
           final imageInfo = result['image'];
@@ -169,7 +168,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
             (imageInfo['height'] as num).toDouble(),
           );
         }
-        
+
         if (mounted) {
           setState(() {
             _scanResult = result;
@@ -178,7 +177,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
 
           final predictions = result['predictions'] as List?;
           final detectionCount = predictions?.length ?? 0;
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('พบ $detectionCount รายการ'),
@@ -195,14 +194,15 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
         setState(() {
           _isAnalyzing = false;
         });
-        
+
         String errorMessage = 'เกิดข้อผิดพลาดในการสแกน';
         if (e.toString().contains('ไม่พบไฟล์ภาพ')) {
           errorMessage = 'ไม่พบไฟล์ภาพ กรุณาถ่าย/เลือกภาพใหม่';
-        } else if (e.toString().contains('SocketException') || e.toString().contains('NetworkException')) {
+        } else if (e.toString().contains('SocketException') ||
+            e.toString().contains('NetworkException')) {
           errorMessage = 'ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -217,16 +217,16 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
   Future<void> _pickImageFromGallery() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    
+
     if (image != null && mounted) {
       setState(() {
         _capturedImagePath = image.path;
         _scanResult = null; // Reset previous scan result
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('เลือกภาพสำเร็จ')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('เลือกภาพสำเร็จ')));
     }
   }
 
@@ -240,9 +240,9 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
 
   void _handleQuickPin() {
     if (_scanResult == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาสแกนก่อนปักหมุด')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาสแกนก่อนปักหมุด')));
       return;
     }
 
@@ -260,7 +260,8 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
     final confidence = (topPrediction['confidence'] as num?)?.toDouble() ?? 0;
 
     final title = 'หมุด: $thaiName';
-    final description = 'พบ $thaiName (${(confidence * 100).toStringAsFixed(1)}%) จากการสแกน';
+    final description =
+        'พบ $thaiName (${(confidence * 100).toStringAsFixed(1)}%) จากการสแกน';
 
     Navigator.push(
       context,
@@ -278,17 +279,16 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('สแกน'),
+        automaticallyImplyLeading: false,
+        title: const Text('Scan'),
         backgroundColor: AppColors.success,
         foregroundColor: AppColors.secondary,
       ),
       body: !_isInitialized
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _capturedImagePath != null
-              ? _buildImagePreview()
-              : _buildCameraView(),
+          ? _buildImagePreview()
+          : _buildCameraView(),
     );
   }
 
@@ -296,10 +296,8 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
     return Stack(
       children: [
         // Camera Preview
-        SizedBox.expand(
-          child: CameraPreview(_cameraController!),
-        ),
-        
+        SizedBox.expand(child: CameraPreview(_cameraController!)),
+
         // Overlay with scan button
         Positioned(
           bottom: 0,
@@ -311,10 +309,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                ],
+                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
               ),
             ),
             child: Column(
@@ -333,28 +328,47 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                         color: AppColors.success,
                       ),
                     ),
-                    
+
                     // Take picture button
-                    FloatingActionButton.extended(
-                      heroTag: 'scan',
-                      onPressed: _isScanning ? null : _takePicture,
-                      backgroundColor: AppColors.success,
-                      icon: _isScanning
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.camera_alt),
-                      label: Text(
-                        _isScanning ? 'กำลังถ่าย...' : 'ถ่ายรูป',
-                        style: const TextStyle(fontSize: 16),
+                    GestureDetector(
+                      onTap: _isScanning ? null : _takePicture,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: _isScanning
+                              ? const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
+                                )
+                              : Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                        ),
                       ),
                     ),
-                    
+
                     // Placeholder for symmetry
                     const SizedBox(width: 56),
                   ],
@@ -378,13 +392,17 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               if (snapshot.data != true) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         'ไม่พบไฟล์ภาพ',
@@ -399,7 +417,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                   ),
                 );
               }
-              
+
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return Stack(
@@ -413,11 +431,18 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                                const Icon(
+                                  Icons.broken_image,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
                                 const SizedBox(height: 16),
                                 const Text(
                                   'ไม่สามารถโหลดภาพได้',
-                                  style: TextStyle(fontSize: 18, color: Colors.white),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 ElevatedButton(
@@ -446,7 +471,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
             },
           ),
         ),
-        
+
         // Overlay with action buttons
         Positioned(
           bottom: 0,
@@ -458,10 +483,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                ],
+                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
               ),
             ),
             child: Column(
@@ -495,12 +517,15 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                             : const Icon(Icons.search, size: 28),
                         label: Text(
                           _isAnalyzing ? 'กำลังวิเคราะห์...' : 'สแกน',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                
+
                 // Result display
                 if (_scanResult != null)
                   Container(
@@ -531,8 +556,12 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if ((_scanResult!['predictions'] as List?)?.isNotEmpty ?? false)
-                          ...(_scanResult!['predictions'] as List).take(3).map((pred) {
+                        if ((_scanResult!['predictions'] as List?)
+                                ?.isNotEmpty ??
+                            false)
+                          ...(_scanResult!['predictions'] as List).take(3).map((
+                            pred,
+                          ) {
                             final englishName = pred['class'] as String? ?? '';
                             final thaiName = _translateFlowerName(englishName);
                             return Padding(
@@ -549,7 +578,7 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                       ],
                     ),
                   ),
-                
+
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: SizedBox(
@@ -567,7 +596,10 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                       icon: const Icon(Icons.push_pin_outlined),
                       label: const Text(
                         'ปักหมุดด่วน',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -586,10 +618,13 @@ class _NotificationMainScreenState extends State<NotificationMainScreen> {
                       ),
                       label: const Text(
                         'ถ่ายใหม่',
-                        style: TextStyle(color: AppColors.success, fontSize: 16),
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    
+
                     // Select from gallery button
                     FloatingActionButton.extended(
                       heroTag: 'gallery2',
